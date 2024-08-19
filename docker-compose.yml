@@ -1,0 +1,125 @@
+networks:
+  public: {}
+  private: {}
+
+volumes:
+  grafana_lib: {}
+  grafana_ds: 
+
+services:
+  influxdb:
+    image: influxdb:alpine
+    container_name: influxdb
+    ports:
+      - "8086:8086"
+    networks:
+      - public
+      - private
+    volumes:
+      - ./data/influxdb:/var/lib/influxdb
+    environment:
+      INFLUXDB_REPORTING_DISABLED: "true"
+      INFLUXDB_DB: telegraf
+      INFLUXDB_USER: telegraf
+      INFLUXDB_USER_PASSWORD: nimda321
+
+  grafana:
+      image: grafana/grafana:latest
+      container_name: grafana
+      ports:
+        - "3001:3000"
+      networks:
+        - public
+        - private
+      volumes:
+        - grafana_lib:/var/lib/grafana
+#        - ${PWD}/grafana/privkey1.pem:/privkey1.pem:ro
+#        - ${PWD}/grafana/fullchain1.pem:/fullchain1.pem:ro
+        - ${PWD}/grafana/:/var/lib/grafana/ds/
+      environment:
+        GF_AUTH_ANONYMOUS_ENABLED: "false"
+        GF_SECURITY_ADMIN_PASSWORD: "nimda321"
+        GF_SECURITY_ADMIN_USER: "admin"
+        GF_SERVER_PROTOCOL: "http"
+        GF_SERVER_DOMAIN: "sebson.ddns.net"
+#        GF_SERVER_CERT_FILE: "/fullchain1.pem"
+#        GF_SERVER_CERT_KEY: "/privkey1.pem"
+        GF_SERVER_METRICS_ENABLED: "true"
+        GF_SERVER_METRICS_INTERVAL_SECONDS: "10"
+        INFLUXDB_URI: "http://influxdb:8086"
+        INFLUXDB_DB: telegraf
+        INFLUXDB_USER: telegraf
+        INFLUXDB_USER_PASSWORD: nimda321
+        
+  telegraf:
+    image: telegraf:latest
+    container_name: telegraf
+    network_mode: "host"
+    volumes:
+      - ./telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    environment:
+      # real influx host
+      INFLUXDB_URI: "http://localhost:8086"
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+     - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+     - private
+    command: "--config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus"
+    ports:
+     - 9091:9090
+    depends_on:
+     - node_exporter
+
+  node_exporter:
+    image: prom/node-exporter:v0.13.0
+    container_name: node_exporter
+    volumes:
+      - ${PWD}/node_exporter/justrun.py:/justrun.py:rw
+      - ${PWD}/node_exporter/hmon:/hmon:rw
+      - ${PWD}/node_exporter/smoothlogging:/smoothlogging:rw
+      - ${PWD}/node_exporter/textfile_collector:/var/lib/node_exporter/textfile_collector/
+    networks:
+      - public
+      - private
+    environment:
+      DOGSNAME:      "GULA,BODKA"
+    expose:
+      - 9100
+    ports:
+      - 9101:9100
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /cgroup:/cgroup:ro #doesn't work on MacOS only for Linux
+    restart: unless-stopped
+    expose:
+      - 8080
+    networks:
+      - private
+      - public
+    labels:
+      org.label-schema.group: "monitoring"
+
+  alertmanager:
+    image: prom/alertmanager
+    container_name: alertmanager
+    ports:
+      - 9093:9093
+    volumes:
+      - ./alertmanager/:/etc/alertmanager/
+    networks:
+      - private
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
