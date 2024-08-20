@@ -32,10 +32,10 @@ services:
         - public
         - private
       volumes:
-        - grafana_lib:/var/lib/grafana
+        - ./data/grafana/grafana_lib:/var/lib/grafana
 #        - ${PWD}/grafana/privkey1.pem:/privkey1.pem:ro
 #        - ${PWD}/grafana/fullchain1.pem:/fullchain1.pem:ro
-        - ${PWD}/grafana/:/var/lib/grafana/ds/
+        - ./data/grafana/grafana_lib/ds:/var/lib/grafana/ds/
       environment:
         GF_AUTH_ANONYMOUS_ENABLED: "false"
         GF_SECURITY_ADMIN_PASSWORD: "nimda321"
@@ -78,10 +78,10 @@ services:
     image: prom/node-exporter:v0.13.0
     container_name: node_exporter
     volumes:
-      - ${PWD}/node_exporter/justrun.py:/justrun.py:rw
-      - ${PWD}/node_exporter/hmon:/hmon:rw
-      - ${PWD}/node_exporter/smoothlogging:/smoothlogging:rw
-      - ${PWD}/node_exporter/textfile_collector:/var/lib/node_exporter/textfile_collector/
+      - ./data/node_exporter/justrun.py:/justrun.py:rw
+      - ./data/node_exporter/hmon:/hmon:rw
+      - ./data/node_exporter/smoothlogging:/smoothlogging:rw
+      - ./data/node_exporter/textfile_collector:/var/lib/node_exporter/textfile_collector/
     networks:
       - public
       - private
